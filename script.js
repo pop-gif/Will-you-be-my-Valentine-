@@ -35,7 +35,7 @@ function showPage(page) {
   pageYes.style.display = isYes ? "block" : "none";
 
   // change URL without reloading (so audio keeps playing)
-  history.pushState({ page }, "", isYes ? "yes_page.html" : "index.html");
+  //history.pushState({ page }, "", isYes ? "yes_page.html" : "index.html");
 }
 
 function handleYesClick() {
