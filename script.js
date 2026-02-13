@@ -70,8 +70,10 @@ window.addEventListener("DOMContentLoaded", () => {
   if (!btn || !frame) return;
 
   const setIcon = (playing) => {
-    btn.innerText = playing ? "||" : "►";
+    btn.innerText = playing ? "❤️" : "🤍";
+    btn.classList.toggle("paused", !playing);
   };
+
 
   window.addEventListener("message", (event) => {
     const msg = event.data;

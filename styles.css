@@ -75,4 +75,20 @@ body {
   transform: scale(1.05);
 }
 
+.heart-btn {
+  font-size: 28px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.heart-btn:hover {
+  transform: scale(1.2);
+}
+
+.heart-btn.paused {
+  opacity: 0.5;
+}
+
 
