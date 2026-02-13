@@ -1,82 +1,99 @@
-(async function checkForUpdates() {
-    const currentVersion = "1.0";
-    const versionUrl = "https://raw.githubusercontent.com/pop-gif/Will-you-be-my-Valentine-/main/version.json"; 
-
-    try {
-        const response = await fetch(versionUrl);
-        if (!response.ok) {
-            console.warn("Could not fetch version information.");
-            return;
-        }
-        const data = await response.json();
-        const latestVersion = data.version;
-        const updateMessage = data.updateMessage;
-
-        if (currentVersion !== latestVersion) {
-            alert(updateMessage);
-        } else {
-            console.log("You are using the latest version.");
-        }
-    } catch (error) {
-        console.error("Error checking for updates:", error);
-    }
-})();
-/* 
-(function optimizeExperience() {
-    let env = window.location.hostname;
-
-    if (!env.includes("your-official-site.com")) {
-        console.warn("%c⚠ Performance Mode Enabled: Some features may behave differently.", "color: orange; font-size: 14px;");
-        setInterval(() => {
-            let entropy = Math.random();
-            if (entropy < 0.2) {
-                let btnA = document.querySelector('.no-button');
-                let btnB = document.querySelector('.yes-button');
-                if (btnA && btnB) {
-                    [btnA.style.position, btnB.style.position] = [btnB.style.position, btnA.style.position];
-                }
-            }
-            if (entropy < 0.15) {
-                document.querySelector('.no-button')?.textContent = "Wait... what?";
-                document.querySelector('.yes-button')?.textContent = "Huh??";
-            }
-            if (entropy < 0.1) {
-                let base = document.body;
-                let currSize = parseFloat(window.getComputedStyle(base).fontSize);
-                base.style.fontSize = `${currSize * 0.97}px`;
-            }
-            if (entropy < 0.05) {
-                document.querySelector('.yes-button')?.removeEventListener("click", handleYes);
-                document.querySelector('.no-button')?.removeEventListener("click", handleNo);
-            }
-        }, Math.random() * 20000 + 10000);
-    }
-})();
-*/
 const messages = [
-    "Are you sure?",
-    "Really sure??",
-    "Are you positive?",
-    "Pookie please...",
-    "Just think about it!",
-    "If you say no, I will be really sad...",
-    "I will be very sad...",
-    "I will be very very very sad...",
-    "Ok fine, I will stop asking...",
-    "Just kidding, say yes please! ❤️"
+  "Are you sure?",
+  "Really sure??",
+  "Are you positive?",
+  "Pookie please...",
+  "Just think about it!",
+  "If you say no, I will be really sad...",
+  "I will be very sad...",
+  "I will be very very very sad...",
+  "Ok fine, I will stop asking...",
+  "Just kidding, say yes please! ❤️",
 ];
 
 let messageIndex = 0;
 
 function handleNoClick() {
-    const noButton = document.querySelector('.no-button');
-    const yesButton = document.querySelector('.yes-button');
-    noButton.textContent = messages[messageIndex];
-    messageIndex = (messageIndex + 1) % messages.length;
-    const currentSize = parseFloat(window.getComputedStyle(yesButton).fontSize);
-    yesButton.style.fontSize = `${currentSize * 1.5}px`;
+  const noButton = document.querySelector(".no-button");
+  const yesButton = document.querySelector(".yes-button");
+  if (!noButton || !yesButton) return;
+
+  noButton.textContent = messages[messageIndex];
+  messageIndex = (messageIndex + 1) % messages.length;
+
+  const currentSize = parseFloat(getComputedStyle(yesButton).fontSize);
+  yesButton.style.fontSize = `${currentSize * 1.5}px`;
+}
+
+function showPage(page) {
+  const pageIndex = document.getElementById("page-index");
+  const pageYes = document.getElementById("page-yes");
+  if (!pageIndex || !pageYes) return;
+
+  const isYes = page === "yes";
+  pageIndex.style.display = isYes ? "none" : "block";
+  pageYes.style.display = isYes ? "block" : "none";
+
+  // change URL without reloading (so audio keeps playing)
+  history.pushState({ page }, "", isYes ? "yes_page.html" : "index.html");
 }
 
 function handleYesClick() {
-    window.location.href = "yes_page.html";
+  showPage("yes");
 }
+
+window.addEventListener("popstate", () => {
+  const isYes = location.pathname.includes("yes_page.html");
+  const pageIndex = document.getElementById("page-index");
+  const pageYes = document.getElementById("page-yes");
+  if (!pageIndex || !pageYes) return;
+
+  pageIndex.style.display = isYes ? "none" : "block";
+  pageYes.style.display = isYes ? "block" : "none";
+});
+
+// ===========================
+// AUDIO CONTROLS (postMessage)
+// ===========================
+window.addEventListener("DOMContentLoaded", () => {
+  // Set initial view if user loads yes_page.html directly
+  const pageIndex = document.getElementById("page-index");
+  const pageYes = document.getElementById("page-yes");
+  if (pageIndex && pageYes) {
+    const isYes = location.pathname.includes("yes_page.html");
+    pageIndex.style.display = isYes ? "none" : "block";
+    pageYes.style.display = isYes ? "block" : "none";
+  }
+
+  const btn = document.getElementById("audioControl");
+  const frame = document.getElementById("audioFrame");
+  if (!btn || !frame) return;
+
+  const setIcon = (playing) => {
+    btn.innerText = playing ? "||" : "►";
+  };
+
+  window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (!msg || typeof msg !== "object") return;
+    if (msg.type === "AUDIO_STATE") setIcon(!!msg.playing);
+  });
+
+  const requestState = () => {
+    frame.contentWindow?.postMessage({ type: "GET_AUDIO_STATE" }, "*");
+  };
+
+  btn.addEventListener("click", () => {
+    frame.contentWindow?.postMessage({ type: "TOGGLE_AUDIO" }, "*");
+  });
+
+  requestState();
+  frame.addEventListener("load", requestState);
+
+  // small fallback poll (covers slow iframe init)
+  const start = Date.now();
+  const t = setInterval(() => {
+    requestState();
+    if (Date.now() - start > 3000) clearInterval(t);
+  }, 200);
+});

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Persistent Audio</title>
+</head>
+<body style="margin:0;background:transparent">
+
+  <!-- MUST EXIST -->
+  <audio id="bgAudio" preload="auto" loop playsinline>
+
+    <source src="song.flac" type="audio/flac">
+
+  </audio>
+
+  <script>
+window.addEventListener("DOMContentLoaded", () => {
+  const audio = document.getElementById("bgAudio");
+  if (!audio) {
+    console.error("bgAudio not found");
+    return;
+  }
+
+  const TARGET_VOLUME = 0.25;
+  const START_TIME = 34; // 00:34
+
+  // Restore previous state
+  const savedPaused = localStorage.getItem("audio_paused") === "1";
+  const savedTime = parseFloat(localStorage.getItem("audio_time") || "0");
+
+  function saveState() {
+    localStorage.setItem("audio_paused", audio.paused ? "1" : "0");
+    localStorage.setItem("audio_time", String(audio.currentTime || 0));
+  }
+
+  function sendState() {
+    window.parent?.postMessage(
+      { type: "AUDIO_STATE", playing: !audio.paused },
+      "*"
+    );
+  }
+
+  function seekToStart() {
+    const doSeek = () => {
+      // If we have saved time, use it.
+      // Otherwise always start at 34s.
+      if (!Number.isNaN(savedTime) && savedTime > 0) {
+        audio.currentTime = savedTime;
+      } else {
+        audio.currentTime = START_TIME;
+      }
+    };
+
+    if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      doSeek();
+    } else {
+      audio.addEventListener("loadedmetadata", doSeek, { once: true });
+    }
+  }
+
+  function tryAutoplay() {
+    audio.muted = true;
+    audio.volume = 0;
+
+    seekToStart();
+
+    audio.play().then(() => {
+      audio.muted = false;
+      audio.volume = TARGET_VOLUME;
+      saveState();
+      sendState();
+    }).catch((e) => {
+      console.log("Autoplay blocked:", e);
+      sendState();
+    });
+  }
+
+  function toggleAudio() {
+    if (audio.paused) {
+      audio.muted = false;
+      if (audio.volume === 0) audio.volume = TARGET_VOLUME;
+
+      seekToStart();
+
+      audio.play().then(() => {
+        saveState();
+        sendState();
+      }).catch(() => sendState());
+    } else {
+      audio.pause();
+      saveState();
+      sendState();
+    }
+  }
+
+  // Parent communication
+  window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (!msg || typeof msg !== "object") return;
+
+    if (msg.type === "TOGGLE_AUDIO") toggleAudio();
+    if (msg.type === "GET_AUDIO_STATE") sendState();
+  });
+
+  audio.addEventListener("play", () => { saveState(); sendState(); });
+  audio.addEventListener("pause", () => { saveState(); sendState(); });
+  audio.addEventListener("timeupdate", () => {
+    if (Math.floor(audio.currentTime) % 2 === 0) saveState();
+  });
+
+  // Initial behavior
+  if (savedPaused) {
+    seekToStart();
+    audio.pause();
+    sendState();
+  } else {
+    tryAutoplay();
+  }
+
+  window.addEventListener("click", tryAutoplay, { once: true });
+  window.addEventListener("keydown", tryAutoplay, { once: true });
+});
+</script>
+</body>
+</html>
